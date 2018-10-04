@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import copy
 from collections import Counter
 
 EPSILON = 1e-6
@@ -18,8 +19,7 @@ class PMF:
                 self.pop = np.asanyarray([k for k in args[0]])
                 self.freq = np.asanyarray([k for k in args[0].values()])
             elif isinstance(args[0], PMF):
-                self.pop = args[0].pop
-                self.freq = args[0].freq
+                self = copy.copy(args[0])
         elif len(args) == 2:
             self.pop = args[0]
             self.freq = args[1]
@@ -116,6 +116,7 @@ class PMF:
     def makeCdf(self):
         res = PMF(self)
         res.freq = np.cumsum(self.freq)
+        res.freq /= res.freq[-1]
         return res
 
 
