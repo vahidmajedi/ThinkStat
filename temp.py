@@ -7,4 +7,4 @@ x = np.round(x)
 
 pmf = PMF(x)
 pmf = pmf.normalize()
-ml = pmf.p([-3,-2,-1,0])
+m = pmf.percentile(60)

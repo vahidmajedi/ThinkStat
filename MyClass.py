@@ -69,18 +69,32 @@ class PMF:
     def p(self, val):
         if not isinstance(val, list):
             val = [val]
-        res = []
-        for x in val:
-            idx = np.where(self.pop==x)
-            tmp = 0
+        res = np.zeros(len(val))
+        for i in range(len(val)):
+            idx = np.where(self.pop==val[i])
             if idx != []:
-                tmp = self.freq[idx] if self.isnormal() else self.normalize().freq[idx]
-            res.append(tmp)
+                res[i] = self.freq[idx] if self.isnormal() else self.normalize().freq[idx]
         return res
 
     def fr(self, val):
-        idx = np.where(self.pop==val)
-        return self.freq[idx]
+        if not isinstance(val, list):
+            val = [val]
+        res = np.zeros(len(val))
+        for i in range(len(val)):
+            idx = np.where(self.pop==val[i])
+            if idx != []:
+                res[i] = self.freq[idx]
+        return res
+    
+    def percentile(self, percent):
+        p = percent / 100
+        cdf = self.makeCdf()
+        idx = np.where(cdf.freq >= p)[0][0]
+        return self.pop[idx]
+    
+    def generate_random(self, size=1):
+        rnd = np.random.uniform(size = size)
+        return [self.percentile(x*100) for x in rnd]
 
     def trim(self, low_band = None, up_band = None):
         if low_band is None:
