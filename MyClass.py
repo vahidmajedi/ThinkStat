@@ -7,29 +7,36 @@ EPSILON = 1e-6
 
 class PMF:
     def __init__(self, *args):
-        if len(args) == 0:
-            self.pop = []
-            self.freq = []
-        elif len(args) == 1:
-            if isinstance(args[0], (np.ndarray, list)):
-                dict_ = Counter(args[0])
-                self.pop = np.asanyarray([k for k in dict_])
-                self.freq = np.asanyarray([k for k in dict_.values()])
-            elif isinstance(args[0], dict):
-                self.pop = np.asanyarray([k for k in args[0]])
-                self.freq = np.asanyarray([k for k in args[0].values()])
-            elif isinstance(args[0], PMF):
-                self = copy.copy(args[0])
-        elif len(args) == 2:
+        L = len(args)
+        if L == 0:
+            self.pop = np.asarray([])
+            self.freq = np.asarray([])
+        elif L == 1:
+            obj = args[0]
+            if isinstance(obj, (np.ndarray, list)):
+                dict_ = Counter(obj)
+                self.pop = np.asarray([k for k in dict_])
+                self.freq = np.asarray([k for k in dict_.values()])
+            elif isinstance(obj, dict):
+                self.pop = np.asarray([k for k in obj])
+                self.freq = np.asarray([k for k in obj.values()])
+            elif isinstance(obj, PMF):
+                self = copy.copy(obj)
+            else:
+                raise ValueError("Arguments are not Compatible")
+        elif L == 2:
             self.pop = args[0]
             self.freq = args[1]
         else:
-            raise ValueError("Arguments is not Compatible")
+            raise ValueError("Arguments are not Compatible")
 
         if not all(a<=b for a,b in zip(self.pop, self.pop[1:])):
             idx = np.argsort(self.pop)
             self.pop = self.pop[idx]
             self.freq = self.freq[idx]
+
+    def copy(self):
+        return PMF(self)
 
     def __len__(self):
         return len(self.pop)
@@ -73,25 +80,15 @@ class PMF:
         for i in range(len(val)):
             idx = np.where(self.pop==val[i])
             if idx != []:
-                res[i] = self.freq[idx] if self.isnormal() else self.normalize().freq[idx]
-        return res
-
-    def fr(self, val):
-        if not isinstance(val, list):
-            val = [val]
-        res = np.zeros(len(val))
-        for i in range(len(val)):
-            idx = np.where(self.pop==val[i])
-            if idx != []:
                 res[i] = self.freq[idx]
         return res
-    
+
     def percentile(self, percent):
         p = percent / 100
         cdf = self.makeCdf()
         idx = np.where(cdf.freq >= p)[0][0]
         return self.pop[idx]
-    
+
     def generate_random(self, size=1):
         rnd = np.random.uniform(size = size)
         return [self.percentile(x*100) for x in rnd]
@@ -118,6 +115,77 @@ class PMF:
         res.freq = np.cumsum(self.freq)
         res.freq /= res.freq[-1]
         return res
+
+class CDF:
+    def __init__(self, *args):
+        L = len(args)
+        if L == 0:
+            self.pop = np.asarray([])
+            self.freq = np.asarray([])
+        elif L == 1:
+            obj = args[0]
+            if isinstance(obj, CDF):
+                return copy.copy(self)
+            elif isinstance(obj, PMF):
+                self.pop = obj.pop
+                self.freq = np.cumsum(obj.freq)
+            elif isinstance(obj, (np.ndarray, list)):
+                pmf = PMF(obj)
+                return CDF(pmf)
+            else:
+                raise TypeError("Arguments are not Compatible")
+        elif L == 2:
+            self.pop = args[0]
+            self.freq = args[1]
+        else:
+            raise TypeError("Arguments are not Compatible")
+
+    def __len__(self):
+        return len(self.pop)
+
+    def copy(self):
+        return CDF(self)
+
+    def mean(self):
+        pmf = self.makePmf()
+        return pmf.mean()
+
+    def variance(self):
+        pmf = self.makePmf()
+        return pmf.variance()
+
+    def std(self):
+        return np.sqrt(self.variance)
+
+    def makePmf(self):
+        res = CDF(self)
+        tmp = np.roll(res.freq, 1)
+        tmp[0] = 0
+        res.freq -= tmp
+        return res
+
+    def normalize(self):
+        res = CDF(self)
+        res.freq  /= res.freq[-1]
+        return res
+
+    def isnormal(self):
+        return np.abs(self.freq[-1] - 1) < EPSILON
+
+    def p(self, val):
+        pmf = self.makePmf()
+        return pmf.p(val)
+
+    def percentile(self, percent):
+        p = percent / 100
+        if not self.isnormal():
+            cdf = self.normalize()
+        idx = np.where(cdf.freq >= p)[0][0]
+        return cdf.pop[idx]
+
+    def generate_random(self, size=1):
+        rnd = np.random.uniform(size = size)
+        return [self.percentile(x*100) for x in rnd]
 
 
 class ConDist():
